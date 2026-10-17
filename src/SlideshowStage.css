@@ -1,0 +1,44 @@
+.recovered-slideshow-stage {
+  isolation: isolate;
+  background: #000;
+}
+.recovered-slideshow-stage .slide-frame,
+.recovered-slideshow-stage .slide-scene {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.recovered-slideshow-stage .slide-frame {
+  background: #000;
+}
+.recovered-slideshow-stage .slide-scene {
+  background: #202020;
+}
+.recovered-slideshow-stage img {
+  position: absolute;
+  user-select: none;
+  pointer-events: none;
+  max-width: none;
+  max-height: none;
+}
+.recovered-slideshow-stage .slide-background {
+  inset: -3%;
+  width: 106%;
+  height: 106%;
+  object-fit: cover;
+  filter: blur(1vw);
+}
+.recovered-slideshow-stage .slide-foreground {
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  transform-origin: center;
+}
+.recovered-slideshow-stage .slide-foreground.landscape {
+  width: 100%;
+  height: auto;
+}
+.recovered-slideshow-stage .slide-foreground.portrait {
+  width: auto;
+  height: 100%;
+}

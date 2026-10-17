@@ -3,7 +3,7 @@
 一个**可编译、可运行**的本地照片图库 / 查看 / 编辑应用，是对本机
 `Microsoft.Windows.Photos`（Windows 照片）做逆向分析后，重新实现其**本地功能面**的独立工程。
 
-它不是微软原始源码，也不依赖微软的私有二进制；UI、数据目录、缩略图与编辑都在本地完成，照片文件与数据库不会上传到任何云端服务。
+它不是微软原始源码，也不依赖微软的私有二进制；UI、数据目录、缩略图与编辑都在本地完成，照片文件与数据库不会上传到任何云端服务。幻灯片内置音乐按需从微软 CDN 加载。
 
 ## 为什么是这套技术栈
 
@@ -40,6 +40,8 @@
 - **设置**：深色/浅色/跟随系统主题，缩略图大小，照片填充方式；偏好本地持久化。
 
 支持格式：JPEG、PNG、WebP、GIF、BMP、TIFF、ICO。
+
+幻灯片支持 4 种照片运动、原版默认池的 12 种转场结果及比例过滤逻辑，同图模糊背景、暂停恢复与从起始照片重播；支持 6 类 24 首内置音乐、前奏后主段循环、音量、静音及本地音乐。另实现原包中未启用的 5 种转场，可通过组件 transition 参数指定。WebGL 转场以浏览器动画近似重建，证据与限制见 docs/slideshow-effects-evidence.md 和 docs/slideshow-music-evidence.md。
 
 ## 目录结构
 
@@ -90,7 +92,7 @@ npm test
 
 - 目录数据库：`%APPDATA%\..\Local` 的应用数据目录（`local.photos.rebuilt`）下的 `library.sqlite3`。
 - 缩略图缓存：同目录下 `thumbnails/`。
-- 除用户显式添加的本地文件夹外，不访问任何其他路径；不联网、不上传。
+- 除用户显式添加的本地文件夹外，不访问任何其他路径；照片不会上传。启用幻灯片内置背景音乐时，从 Microsoft Office CDN 联网加载音频；也可选择本地音乐离线播放。
 
 ## 测试
 
@@ -110,3 +112,5 @@ npm test
 | 图像处理 | Win2D / Windows Imaging / Windows.AI.Imaging | `image` crate + `kamadak-exif` |
 
 原版的完整技术栈与逐 DLL 依赖清单见 `../photos-recovery/`（含 AppxManifest、23 个托管 DLL 恢复工程、26 个 WinMD 声明、41 个原生模块的 Ghidra 伪 C 与逐文件 SHA-256 快照）。
+
+幻灯片逻辑测试：`npm run test:slideshow`。启动开发服务器后执行浏览器动效测试：`npm run test:slideshow:browser`（默认 Edge，可用 PLAYWRIGHT_CHANNEL 指定浏览器）。

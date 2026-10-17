@@ -1,0 +1,170 @@
+[
+  {
+    "id": "abff2ea1-8ef7-4fa9-a25f-b304fa2f11e6",
+    "name": "Take Me Away",
+    "category": "Chill",
+    "intro": "audios/publish/abff2ea1-8ef7-4fa9-a25f-b304fa2f11e6/chill_takemeaway_intro.aac",
+    "path": "audios/publish/abff2ea1-8ef7-4fa9-a25f-b304fa2f11e6/chill_takemeaway_main.aac"
+  },
+  {
+    "id": "8ce1bd73-021a-4ca2-a4a2-e93cde1533c9",
+    "name": "Tranquility",
+    "category": "Chill",
+    "intro": "audios/publish/8ce1bd73-021a-4ca2-a4a2-e93cde1533c9/chill_tranquility_intro.aac",
+    "path": "audios/publish/8ce1bd73-021a-4ca2-a4a2-e93cde1533c9/chill_tranquility_main.aac"
+  },
+  {
+    "id": "b356f763-b6b3-406e-a424-9aadaa2e32f8",
+    "name": "Dream State",
+    "category": "Chill",
+    "intro": "audios/publish/b356f763-b6b3-406e-a424-9aadaa2e32f8/chill_dreamstate_intro.aac",
+    "path": "audios/publish/b356f763-b6b3-406e-a424-9aadaa2e32f8/chill_dreamstate_main.aac"
+  },
+  {
+    "id": "29e8fe60-32f9-4d89-97ec-9aaa09b5a96e",
+    "name": "Distant Echoes",
+    "category": "Chill",
+    "intro": "audios/publish/29e8fe60-32f9-4d89-97ec-9aaa09b5a96e/chill_distantechoes_intro.aac",
+    "path": "audios/publish/29e8fe60-32f9-4d89-97ec-9aaa09b5a96e/chill_distantechoes_main.aac"
+  },
+  {
+    "id": "e63d23c5-6347-425d-8829-f4c5fee1e048",
+    "name": "Back Then",
+    "category": "Beats",
+    "intro": "audios/publish/e63d23c5-6347-425d-8829-f4c5fee1e048/beats_backthen_intro.aac",
+    "path": "audios/publish/e63d23c5-6347-425d-8829-f4c5fee1e048/beats_backthen_main.aac"
+  },
+  {
+    "id": "1f986770-04a7-4bd7-9c39-dbb256b1de4a",
+    "name": "Calling Out",
+    "category": "Beats",
+    "intro": "audios/publish/1f986770-04a7-4bd7-9c39-dbb256b1de4a/beats_callingout_intro.aac",
+    "path": "audios/publish/1f986770-04a7-4bd7-9c39-dbb256b1de4a/beats_callingout_main.aac"
+  },
+  {
+    "id": "41213e2e-7658-4c89-9d0d-d84a968e717e",
+    "name": "Lazy Days",
+    "category": "Beats",
+    "intro": "audios/publish/41213e2e-7658-4c89-9d0d-d84a968e717e/beats_lazydays_intro.aac",
+    "path": "audios/publish/41213e2e-7658-4c89-9d0d-d84a968e717e/beats_lazydays_main.aac"
+  },
+  {
+    "id": "7f4fc57e-7f4b-4a13-8bdc-e4c5d2ff3102",
+    "name": "My Remedy",
+    "category": "Beats",
+    "intro": "audios/publish/7f4fc57e-7f4b-4a13-8bdc-e4c5d2ff3102/beats_myremedy_intro.aac",
+    "path": "audios/publish/7f4fc57e-7f4b-4a13-8bdc-e4c5d2ff3102/beats_myremedy_main.aac"
+  },
+  {
+    "id": "4ec85626-616d-4873-b150-6d348445d7b7",
+    "name": "Together Again",
+    "category": "Sentimental",
+    "intro": "audios/publish/4ec85626-616d-4873-b150-6d348445d7b7/sentimental_togetheragain_intro.aac",
+    "path": "audios/publish/4ec85626-616d-4873-b150-6d348445d7b7/sentimental_togetheragain_main.aac"
+  },
+  {
+    "id": "2def2506-1c45-43c5-b4d7-d5ea385538a4",
+    "name": "Horizons",
+    "category": "Sentimental",
+    "intro": "audios/publish/2def2506-1c45-43c5-b4d7-d5ea385538a4/sentimental_horizons_intro.aac",
+    "path": "audios/publish/2def2506-1c45-43c5-b4d7-d5ea385538a4/sentimental_horizons_main.aac"
+  },
+  {
+    "id": "2dda032b-9423-44c5-a61d-0081af3b4f50",
+    "name": "New Day",
+    "category": "Sentimental",
+    "intro": "audios/publish/2dda032b-9423-44c5-a61d-0081af3b4f50/sentimental_newday_intro.aac",
+    "path": "audios/publish/2dda032b-9423-44c5-a61d-0081af3b4f50/sentimental_newday_main.aac"
+  },
+  {
+    "id": "fe6ff24f-1b56-40ce-a165-922de5f563f5",
+    "name": "Shades of Blue",
+    "category": "Sentimental",
+    "intro": "audios/publish/fe6ff24f-1b56-40ce-a165-922de5f563f5/sentimental_shadesofblue_intro.aac",
+    "path": "audios/publish/fe6ff24f-1b56-40ce-a165-922de5f563f5/sentimental_shadesofblue_main.aac"
+  },
+  {
+    "id": "ea52f872-35b2-4eb8-8330-1b59d8761f0d",
+    "name": "Planetary Funk",
+    "category": "Fun",
+    "intro": "audios/publish/ea52f872-35b2-4eb8-8330-1b59d8761f0d/fun_planetaryfunk_intro.aac",
+    "path": "audios/publish/ea52f872-35b2-4eb8-8330-1b59d8761f0d/fun_planetaryfunk_main.aac"
+  },
+  {
+    "id": "df36e1a2-c1e9-4c21-a7da-ba3de549170a",
+    "name": "Funky Days",
+    "category": "Fun",
+    "intro": "audios/publish/df36e1a2-c1e9-4c21-a7da-ba3de549170a/fun_funkydays_intro.aac",
+    "path": "audios/publish/df36e1a2-c1e9-4c21-a7da-ba3de549170a/fun_funkydays_main.aac"
+  },
+  {
+    "id": "a21a0dd8-3334-4540-882e-750ef9a6335b",
+    "name": "Jumpstart",
+    "category": "Fun",
+    "intro": "audios/publish/a21a0dd8-3334-4540-882e-750ef9a6335b/fun_jumpstart_intro.aac",
+    "path": "audios/publish/a21a0dd8-3334-4540-882e-750ef9a6335b/fun_jumpstart_main.aac"
+  },
+  {
+    "id": "674979d8-9655-42db-a375-f86b16e18adb",
+    "name": "Bossa Bop",
+    "category": "Fun",
+    "intro": "audios/publish/674979d8-9655-42db-a375-f86b16e18adb/fun_bossabop_intro.aac",
+    "path": "audios/publish/674979d8-9655-42db-a375-f86b16e18adb/fun_bossabop_main.aac"
+  },
+  {
+    "id": "89c42198-7bcc-4f31-b06d-3fe90376c218",
+    "name": "All Together",
+    "category": "Energetic",
+    "intro": "audios/publish/89c42198-7bcc-4f31-b06d-3fe90376c218/energetic_alltogether_intro.aac",
+    "path": "audios/publish/89c42198-7bcc-4f31-b06d-3fe90376c218/energetic_alltogether_main.aac"
+  },
+  {
+    "id": "f4a2c3b4-4580-4792-bc22-04cb9c17413b",
+    "name": "Tune In",
+    "category": "Energetic",
+    "intro": "audios/publish/f4a2c3b4-4580-4792-bc22-04cb9c17413b/energetic_tunein_intro.aac",
+    "path": "audios/publish/f4a2c3b4-4580-4792-bc22-04cb9c17413b/energetic_tunein_main.aac"
+  },
+  {
+    "id": "56223472-29d7-420f-bbea-5abc46ed6b82",
+    "name": "Wait For Me",
+    "category": "Energetic",
+    "intro": "audios/publish/56223472-29d7-420f-bbea-5abc46ed6b82/energetic_waitforme_intro.aac",
+    "path": "audios/publish/56223472-29d7-420f-bbea-5abc46ed6b82/energetic_waitforme_main.aac"
+  },
+  {
+    "id": "6be80a2b-9eaf-4d7a-b1aa-786334937654",
+    "name": "Power Within",
+    "category": "Energetic",
+    "intro": "audios/publish/6be80a2b-9eaf-4d7a-b1aa-786334937654/energetic_powerwithin_intro.aac",
+    "path": "audios/publish/6be80a2b-9eaf-4d7a-b1aa-786334937654/energetic_powerwithin_main.aac"
+  },
+  {
+    "id": "0ac2912e-cc63-429d-bbdc-853f0b84bcb5",
+    "name": "Cosmic Notions",
+    "category": "Epic",
+    "intro": "audios/publish/0ac2912e-cc63-429d-bbdc-853f0b84bcb5/epic_cosmicnotion_intro.aac",
+    "path": "audios/publish/0ac2912e-cc63-429d-bbdc-853f0b84bcb5/epic_cosmicnotion_main.aac"
+  },
+  {
+    "id": "fdfb0915-24d6-4e47-a2eb-5c81ac694f8d",
+    "name": "Take Flight",
+    "category": "Epic",
+    "intro": "audios/publish/fdfb0915-24d6-4e47-a2eb-5c81ac694f8d/epic_takeflight_intro.aac",
+    "path": "audios/publish/fdfb0915-24d6-4e47-a2eb-5c81ac694f8d/epic_takeflight_main.aac"
+  },
+  {
+    "id": "3dfb392f-2db5-4569-aa04-c77ca0022754",
+    "name": "Last Dance",
+    "category": "Epic",
+    "intro": "audios/publish/3dfb392f-2db5-4569-aa04-c77ca0022754/epic_lastdance_intro.aac",
+    "path": "audios/publish/3dfb392f-2db5-4569-aa04-c77ca0022754/epic_lastdance_main.aac"
+  },
+  {
+    "id": "619086cd-9f75-4a27-8a24-d5d87ed5160f",
+    "name": "We Go On",
+    "category": "Epic",
+    "intro": "audios/publish/619086cd-9f75-4a27-8a24-d5d87ed5160f/epic_wegoon_intro.aac",
+    "path": "audios/publish/619086cd-9f75-4a27-8a24-d5d87ed5160f/epic_wegoon_main.aac"
+  }
+]

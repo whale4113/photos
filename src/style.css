@@ -1327,3 +1327,17 @@ code {
     transform: scale(1.08);
   }
 }
+
+.slideshow-toolbar {
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  gap: 4px;
+}
+.slideshow-toolbar > button {
+  white-space: nowrap;
+}
+@media (max-width: 950px) {
+  .slideshow-toolbar > button {
+    padding: 8px;
+  }
+}

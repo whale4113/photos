@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "tauri": "tauri",
-    "test": "tsc -b"
+    "test": "tsc -b",
+    "test:slideshow": "node --test scripts/test-slideshow-effects.mjs",
+    "test:slideshow:browser": "node scripts/test-slideshow-stage.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",

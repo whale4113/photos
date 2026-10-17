@@ -49,6 +49,8 @@ import {
 } from "./api";
 import { bytes, date, Details, Page, Photo, Prefs, Source } from "./model";
 import Editor from "./Editor";
+import SlideshowStage from "./SlideshowStage";
+import SlideshowMusic from "./SlideshowMusic";
 
 const displayPath = (path: string) =>
   path.startsWith(String.fromCharCode(92, 92, 63, 92)) ? path.slice(4) : path;
@@ -267,13 +269,21 @@ export default function App() {
       };
     }
   });
+  const [restartToken, setRestartToken] = useState(0);
+  const [slideReady, setSlideReady] = useState(0);
+  const [readyPreview, setReadyPreview] = useState("");
+  const markSlideReady = useCallback(() => {
+    setReadyPreview(preview);
+    setSlideReady((n) => n + 1);
+  }, [preview]);
+  const remainingSlideMs = useRef(4000);
+  const slideshowStartId = useRef<string | null>(null);
   const generation = useRef(0),
     loadingRef = useRef(false),
     photosRef = useRef(photos),
     lastSelected = useRef<number | null>(null),
     moreRef = useRef<() => Promise<Photo[]>>(() => Promise.resolve([])),
     toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null),
-    backImg = useRef<HTMLImageElement | null>(null),
     hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   photosRef.current = photos;
   const notify = useCallback((message: string) => {
@@ -462,17 +472,18 @@ export default function App() {
     },
     [view],
   );
-  useEffect(() => {
-    if (!preview) return;
-    const t = setTimeout(() => {
-      if (backImg.current) backImg.current.src = preview;
-    }, 650);
-    return () => clearTimeout(t);
-  }, [preview]);
   const poke = useCallback(() => {
     setChromeVisible(true);
     if (hideTimer.current) clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => setChromeVisible(false), 2600);
+    hideTimer.current = setTimeout(function hide() {
+      const toolbar = document.querySelector(".slideshow-toolbar");
+      if (
+        toolbar?.contains(document.activeElement) ||
+        toolbar?.querySelector("details[open], .slideshow-music-panel")
+      ) {
+        hideTimer.current = setTimeout(hide, 2600);
+      } else setChromeVisible(false);
+    }, 2600);
   }, []);
   const exitSlideshow = useCallback(() => {
     setSlideshow(false);
@@ -480,7 +491,12 @@ export default function App() {
     if (hideTimer.current) clearTimeout(hideTimer.current);
   }, []);
   const restartSlideshow = useCallback(() => {
-    if (photosRef.current.length) setView(photosRef.current[0]);
+    const start =
+      photosRef.current.find((p) => p.id === slideshowStartId.current) ??
+      photosRef.current[0];
+    if (start) setView(start);
+    setRestartToken((n) => n + 1);
+    setPlaying(true);
   }, []);
   const togglePref = useCallback(
     (k: "animations" | "transitions" | "loop") =>
@@ -491,19 +507,53 @@ export default function App() {
     if (slideshow) poke();
   }, [slideshow, poke]);
   useEffect(() => {
-    if (!slideshow || !playing || !view || editor) return;
-    const timer = setInterval(() => {
+    remainingSlideMs.current = 4000;
+  }, [slideReady, restartToken]);
+  useEffect(() => {
+    if (
+      !slideshow ||
+      !playing ||
+      !view ||
+      editor ||
+      !preview ||
+      readyPreview !== preview ||
+      !slideReady
+    )
+      return;
+    const started = performance.now();
+    const timer = setTimeout(() => {
+      remainingSlideMs.current = 4000;
       const index = photosRef.current.findIndex((p) => p.id === view.id);
       if (
         index === photosRef.current.length - 1 &&
         photosRef.current.length >= total
       ) {
-        if (prefs.loop) setView(photosRef.current[0]);
-        else setPlaying(false);
+        if (prefs.loop && photosRef.current.length > 1)
+          setView(photosRef.current[0]);
+        else if (!prefs.loop) setPlaying(false);
+        else setRestartToken((n) => n + 1);
       } else void navigate(1);
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [slideshow, playing, view, editor, navigate, total, prefs.loop]);
+    }, remainingSlideMs.current);
+    return () => {
+      clearTimeout(timer);
+      remainingSlideMs.current = Math.max(
+        0,
+        remainingSlideMs.current - (performance.now() - started),
+      );
+    };
+  }, [
+    slideshow,
+    playing,
+    view,
+    editor,
+    navigate,
+    total,
+    prefs.loop,
+    preview,
+    readyPreview,
+    slideReady,
+    restartToken,
+  ]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (editor) return;
@@ -523,11 +573,15 @@ export default function App() {
       if (view && !typing) {
         if (e.key === "ArrowRight") void navigate(1);
         if (e.key === "ArrowLeft") void navigate(-1);
-        if (e.key === " ") {
+        if (
+          e.key === " " &&
+          !(e.target as HTMLElement).closest("button, summary")
+        ) {
           e.preventDefault();
           if (slideshow) {
             setPlaying((p) => !p);
           } else {
+            slideshowStartId.current = view?.id ?? null;
             setSlideshow(true);
             setPlaying(true);
           }
@@ -1281,6 +1335,7 @@ export default function App() {
             <button
               className="secondary"
               onClick={() => {
+                slideshowStartId.current = view?.id ?? null;
                 setSlideshow(true);
                 setPlaying(true);
               }}
@@ -1297,32 +1352,18 @@ export default function App() {
           role="dialog"
           aria-label="幻灯片播放"
           onPointerMove={poke}
+          onFocusCapture={poke}
         >
-          <div className="slideshow-stage">
-            <img
-              ref={backImg}
-              className="slideshow-photo back"
-              alt=""
-              aria-hidden={true}
-            />
-            {preview && (
-              <img
-                key={view.id}
-                className="slideshow-photo front"
-                src={preview}
-                alt={view.name}
-                style={{
-                  animation:
-                    [
-                      prefs.transitions ? "slideshow-fade .65s ease" : "",
-                      prefs.animations ? "kenburns 4s ease-out forwards" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(", ") || undefined,
-                }}
-              />
-            )}
-          </div>
+          <SlideshowStage
+            key={restartToken}
+            url={preview}
+            name={view.name}
+            slideIndex={photos.findIndex((p) => p.id === view.id)}
+            playing={playing}
+            animations={prefs.animations}
+            transitions={prefs.transitions}
+            onReady={markSlideReady}
+          />
           <div className="slideshow-chrome">
             <div className="slideshow-title">{view.name}</div>
             <button
@@ -1339,7 +1380,16 @@ export default function App() {
             >
               <ChevronRight size={30} />
             </button>
-            <div className="slideshow-toolbar">
+            <div
+              className="slideshow-toolbar"
+              onFocusCapture={poke}
+              onPointerDown={poke}
+            >
+              <SlideshowMusic
+                playing={playing}
+                restartToken={restartToken}
+                onInteraction={poke}
+              />
               <button
                 aria-label={playing ? "暂停" : "播放"}
                 onClick={() => setPlaying((p) => !p)}
