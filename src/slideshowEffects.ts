@@ -35,6 +35,7 @@ export type SlideshowStageProps = {
   onReady?: () => void;
   transition?: Transition;
   slideIndex?: number;
+  slideKey?: string;
 };
 
 // Recovered cE / yE selection: stable for a slideshow session and slide index.

@@ -408,7 +408,15 @@ impl Library {
         Ok(format!("data:image/jpeg;base64,{}", STANDARD.encode(bytes)))
     }
     pub fn preview(&self, id: &str) -> Result<String> {
-        let img = load_image(&self.photo_path(id)?)?;
+        let path = self.photo_path(id)?;
+        let meta = fs::metadata(&path).map_err(err)?;
+        let modified = meta.modified().ok().and_then(|time| time.duration_since(UNIX_EPOCH).ok()).map(|time| time.as_nanos()).unwrap_or(0);
+        let key = format!("{:x}", Sha256::digest(format!("preview-v1-{id}-{modified}-{}", meta.len()).as_bytes()));
+        let cache = self.cache.join(format!("{key}-preview.jpg"));
+        if cache.exists() {
+            return Ok(format!("data:image/jpeg;base64,{}", STANDARD.encode(fs::read(&cache).map_err(err)?)));
+        }
+        let img = load_image(&path)?;
         let img = if img.width() > 4096 || img.height() > 4096 {
             img.resize(4096, 4096, image::imageops::FilterType::Triangle)
         } else {
@@ -419,6 +427,10 @@ impl Library {
         image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, 90)
             .encode_image(&rgb)
             .map_err(err)?;
+        // Disk cache avoids decoding and re-encoding when revisiting an evicted image.
+        let mut tmp = tempfile::NamedTempFile::new_in(&self.cache).map_err(err)?;
+        std::io::Write::write_all(&mut tmp, buf.get_ref()).map_err(err)?;
+        let _ = tmp.persist(&cache);
         Ok(format!(
             "data:image/jpeg;base64,{}",
             STANDARD.encode(buf.into_inner())
@@ -679,6 +691,28 @@ mod tests {
         fs::remove_file(file).unwrap();
         lib.scan().unwrap();
         assert_eq!(lib.list(Query::default()).unwrap().total, 0);
+    }
+    #[test]
+    fn preview_cache_reuses_bytes_and_invalidates_changed_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("photos");
+        fs::create_dir(&root).unwrap();
+        let file = root.join("a.png");
+        DynamicImage::new_rgb8(20, 10).save(&file).unwrap();
+        let cache = temp.path().join("cache");
+        let lib = Library::open(&temp.path().join("db"), &cache).unwrap();
+        lib.add_source(&root).unwrap();
+        lib.scan().unwrap();
+        let photo = lib.list(Query::default()).unwrap().items.remove(0);
+        let first = lib.preview(&photo.id).unwrap();
+        assert_eq!(first, lib.preview(&photo.id).unwrap());
+        assert_eq!(fs::read_dir(&cache).unwrap().count(), 1);
+        DynamicImage::new_rgb8(50, 40).save(&file).unwrap();
+        assert_ne!(first, lib.preview(&photo.id).unwrap());
+        assert_eq!(fs::read_dir(&cache).unwrap().count(), 2);
+        lib.remove_source(&photo.source_id).unwrap();
+        assert!(lib.preview(&photo.id).is_err());
+        assert!(file.exists());
     }
     #[test]
     fn edits_crop_then_rotate_and_preserve_alpha() {

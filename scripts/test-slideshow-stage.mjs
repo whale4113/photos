@@ -9,8 +9,12 @@ try {
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(process.env.SLIDESHOW_TEST_URL || 'http://127.0.0.1:1420');
   await page.evaluate(async () => {
-    const React = (await import('/node_modules/.vite/deps/react.js')).default;
-    const { createRoot } = (await import('/node_modules/.vite/deps/react-dom_client.js')).default;
+    const stageSource = await (await fetch('/src/SlideshowStage.tsx')).text();
+    const mainSource = await (await fetch('/src/main.tsx')).text();
+    const reactUrl = stageSource.match(/"([^"]*\/react\.js\?[^"]+)"/)[1];
+    const clientUrl = mainSource.match(/"([^"]*\/react-dom_client\.js\?[^"]+)"/)[1];
+    const React = (await import(reactUrl)).default;
+    const { createRoot } = (await import(clientUrl)).default;
     const { default: Stage } = await import('/src/SlideshowStage.tsx');
     const host = document.createElement('div'); host.id = 'stage-test'; document.body.append(host);
     const root = createRoot(host);

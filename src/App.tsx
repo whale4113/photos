@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import {
   call,
+  clearPreviewPreloads,
   desktop,
   peekPreview,
   preloadPreview,
@@ -51,6 +52,7 @@ import { bytes, date, Details, Page, Photo, Prefs, Source } from "./model";
 import Editor from "./Editor";
 import SlideshowStage from "./SlideshowStage";
 import SlideshowMusic from "./SlideshowMusic";
+import Filmstrip from "./Filmstrip";
 
 const displayPath = (path: string) =>
   path.startsWith(String.fromCharCode(92, 92, 63, 92)) ? path.slice(4) : path;
@@ -226,7 +228,7 @@ export default function App() {
     [section, setSection] = useState("all"),
     [search, setSearch] = useState(""),
     [query, setQuery] = useState(""),
-    [sort, setSort] = useState("newest");
+    [sort, setSort] = useState("name");
   const [loading, setLoading] = useState(false),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
@@ -246,6 +248,20 @@ export default function App() {
     [playing, setPlaying] = useState(false),
     [slideshow, setSlideshow] = useState(false),
     [chromeVisible, setChromeVisible] = useState(true);
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const navigationRequest = useRef(0);
+  const navigationPage = useRef<Promise<Photo[]> | null>(null);
+  const pendingNextSteps = useRef(0);
+  const [filmstripVisible, setFilmstripVisible] = useState(true);
+  const [manualNavigation, setManualNavigation] = useState(false);
+  function selectFromFilmstrip(photo: Photo) {
+    navigationRequest.current++;
+    pendingNextSteps.current = 0;
+    viewRef.current = photo;
+    setManualNavigation(true);
+    setView(photo);
+  }
   const [prefs, setPrefs] = useState<Prefs>(() => {
     try {
       return {
@@ -270,13 +286,52 @@ export default function App() {
       };
     }
   });
+  const [folderPicker, setFolderPicker] = useState(false);
+  const [slideFolders, setSlideFolders] = useState<string[]>([]);
+  const [slidePhotos, setSlidePhotos] = useState<Photo[] | null>(null);
+  const [preparingSlides, setPreparingSlides] = useState(false);
+  const playbackPhotos = slideshow && slidePhotos ? slidePhotos : photos;
+  const playbackRef = useRef(playbackPhotos);
+  playbackRef.current = playbackPhotos;
+  function chooseSlideshowFolders() {
+    setSlideFolders(folder ? [folder.id] : sources.map((source) => source.id));
+    setFolderPicker(true);
+  }
+  async function startFolderSlideshow() {
+    setPreparingSlides(true);
+    try {
+      const queue: Photo[] = [];
+      for (const source of slideFolders) {
+        let offset = 0;
+        while (true) {
+          const page = await call<Page>("list_photos", {
+            query: { source, search: "", favorites: false, sort, offset },
+          });
+          queue.push(...page.items);
+          offset += page.items.length;
+          if (offset >= page.total || !page.items.length) break;
+        }
+      }
+      if (!queue.length) { notify("所选文件夹中没有照片"); return; }
+      setSlidePhotos(queue);
+      slideshowStartId.current = queue[0].id;
+      setView(queue[0]);
+      setRestartToken((n) => n + 1);
+      setSlideshow(true);
+      setManualNavigation(false);
+      setPlaying(true);
+      setFolderPicker(false);
+    } catch (e) { notify(String(e)); }
+    finally { setPreparingSlides(false); }
+  }
   const [restartToken, setRestartToken] = useState(0);
-  const [slideReady, setSlideReady] = useState(0);
-  const [readyPreview, setReadyPreview] = useState("");
+  const [previewOwner, setPreviewOwner] = useState("");
+  const [readySlide, setReadySlide] = useState("");
+  const slideKey = view ? `${view.id}:${view.modified}:${restartToken}` : "";
+  const currentPreview = previewOwner === `${view?.id}:${view?.modified}` ? preview : "";
   const markSlideReady = useCallback(() => {
-    setReadyPreview(preview);
-    setSlideReady((n) => n + 1);
-  }, [preview]);
+    if (currentPreview) setReadySlide(slideKey);
+  }, [slideKey, currentPreview]);
   const remainingSlideMs = useRef(4000);
   const slideshowStartId = useRef<string | null>(null);
   const generation = useRef(0),
@@ -433,7 +488,10 @@ export default function App() {
     setRotation(0);
     if (!view) return;
     let alive = true;
+    setPreviewOwner(`${view.id}:${view.modified}`);
     setPreview(peekPreview(view.id, view.modified) ?? "");
+    clearPreviewPreloads();
+    const timer = setTimeout(() => {
     previewUrl(view.id, view.modified)
       .then((url) => {
         if (alive) setPreview(url);
@@ -441,37 +499,65 @@ export default function App() {
       .catch((e) => {
         if (alive) setPreviewError(String(e));
       });
-    call<Details>("get_details", { id: view.id })
+    }, 60);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [view?.id, view?.modified]);
+  useEffect(() => {
+    if (!view || !info || slideshow) return;
+    let alive = true;
+    const timer = setTimeout(() => call<Details>("get_details", { id: view.id })
       .then((d) => {
         if (alive) setDetails(d);
       })
-      .catch(() => {});
+      .catch(() => {}), 120);
     return () => {
       alive = false;
+      clearTimeout(timer);
     };
-  }, [view?.id]);
+  }, [view?.id, view?.modified, info, slideshow]);
   useEffect(() => {
     if (!view || !desktop) return;
-    const index = photosRef.current.findIndex((p) => p.id === view.id);
+    const index = playbackRef.current.findIndex((p) => p.id === view.id);
     if (index < 0) return;
-    for (const i of [index - 1, index + 1, index + 2]) {
-      if (i >= 0 && i < photosRef.current.length) {
-        const p = photosRef.current[i];
+    const timer = setTimeout(() => {
+    for (const i of [index + 1, index - 1]) {
+      if (i >= 0 && i < playbackRef.current.length) {
+        const p = playbackRef.current[i];
         preloadPreview(p.id, p.modified);
       }
     }
-  }, [view?.id]);
+    }, 140);
+    return () => clearTimeout(timer);
+  }, [view?.id, slideshow]);
   const navigate = useCallback(
-    async (delta: number) => {
-      if (!view) return;
-      const index = photosRef.current.findIndex((p) => p.id === view.id);
+    async (delta: number, manual = true) => {
+      if (!viewRef.current) return;
+      setManualNavigation(manual);
+      const request = ++navigationRequest.current;
+      const index = playbackRef.current.findIndex((p) => p.id === viewRef.current!.id);
       if (index < 0) return;
-      if (index + delta >= photosRef.current.length) {
-        const next = await moreRef.current();
-        if (next[0]) setView(next[0]);
-      } else if (index + delta >= 0) setView(photosRef.current[index + delta]);
+      if (index + delta >= playbackRef.current.length) {
+        if (slideshow && slidePhotos) return;
+        const step = ++pendingNextSteps.current;
+        if (!navigationPage.current) {
+          navigationPage.current = moreRef.current().finally(() => { navigationPage.current = null; });
+        }
+        const next = await navigationPage.current;
+        if (next[0] && request === navigationRequest.current && viewRef.current) {
+          viewRef.current = next[Math.min(step - 1, next.length - 1)];
+          setView(viewRef.current);
+        }
+        if (request === navigationRequest.current) pendingNextSteps.current = 0;
+      } else if (index + delta >= 0) {
+        pendingNextSteps.current = 0;
+        viewRef.current = playbackRef.current[index + delta];
+        setView(viewRef.current);
+      }
     },
-    [view],
+    [view, slideshow, slidePhotos],
   );
   const poke = useCallback(() => {
     setChromeVisible(true);
@@ -479,7 +565,8 @@ export default function App() {
     hideTimer.current = setTimeout(function hide() {
       const toolbar = document.querySelector(".slideshow-toolbar");
       if (
-        toolbar?.contains(document.activeElement) ||
+        document.querySelector(".slideshow-chrome :focus-visible") ||
+        toolbar?.matches(":hover") ||
         toolbar?.querySelector("details[open], .slideshow-music-panel")
       ) {
         hideTimer.current = setTimeout(hide, 2600);
@@ -488,13 +575,15 @@ export default function App() {
   }, []);
   const exitSlideshow = useCallback(() => {
     setSlideshow(false);
+    setSlidePhotos(null);
     setPlaying(false);
     if (hideTimer.current) clearTimeout(hideTimer.current);
   }, []);
   const restartSlideshow = useCallback(() => {
+    setManualNavigation(false);
     const start =
-      photosRef.current.find((p) => p.id === slideshowStartId.current) ??
-      photosRef.current[0];
+      playbackRef.current.find((p) => p.id === slideshowStartId.current) ??
+      playbackRef.current[0];
     if (start) setView(start);
     setRestartToken((n) => n + 1);
     setPlaying(true);
@@ -509,35 +598,38 @@ export default function App() {
   }, [slideshow, poke]);
   useEffect(() => {
     remainingSlideMs.current = 4000;
-  }, [slideReady, restartToken]);
+  }, [slideKey]);
   useEffect(() => {
     if (
       !slideshow ||
       !playing ||
       !view ||
       editor ||
-      !preview ||
-      readyPreview !== preview ||
-      !slideReady
+      !currentPreview ||
+      readySlide !== slideKey
     )
       return;
     const started = performance.now();
+    let fired = false;
     const timer = setTimeout(() => {
+      fired = true;
+      setReadySlide("");
+      setManualNavigation(false);
       remainingSlideMs.current = 4000;
-      const index = photosRef.current.findIndex((p) => p.id === view.id);
+      const index = playbackRef.current.findIndex((p) => p.id === view.id);
       if (
-        index === photosRef.current.length - 1 &&
-        photosRef.current.length >= total
+        index === playbackRef.current.length - 1 &&
+        (slidePhotos !== null || playbackRef.current.length >= total)
       ) {
-        if (prefs.loop && photosRef.current.length > 1)
-          setView(photosRef.current[0]);
+        if (prefs.loop && playbackRef.current.length > 1)
+          setView(playbackRef.current[0]);
         else if (!prefs.loop) setPlaying(false);
         else setRestartToken((n) => n + 1);
-      } else void navigate(1);
+      } else void navigate(1, false);
     }, remainingSlideMs.current);
     return () => {
       clearTimeout(timer);
-      remainingSlideMs.current = Math.max(
+      if (!fired) remainingSlideMs.current = Math.max(
         0,
         remainingSlideMs.current - (performance.now() - started),
       );
@@ -550,13 +642,18 @@ export default function App() {
     navigate,
     total,
     prefs.loop,
-    preview,
-    readyPreview,
-    slideReady,
+    slidePhotos,
+    currentPreview,
+    readySlide,
+    slideKey,
     restartToken,
   ]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (folderPicker) {
+        if (e.key === "Escape" && !preparingSlides) setFolderPicker(false);
+        return;
+      }
       if (editor) return;
       const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(
         (e.target as HTMLElement).tagName,
@@ -582,9 +679,7 @@ export default function App() {
           if (slideshow) {
             setPlaying((p) => !p);
           } else {
-            slideshowStartId.current = view?.id ?? null;
-            setSlideshow(true);
-            setPlaying(true);
+            chooseSlideshowFolders();
           }
         }
         if (e.key.toLowerCase() === "e" && preview && !slideshow)
@@ -609,6 +704,10 @@ export default function App() {
     preview,
     slideshow,
     exitSlideshow,
+    folderPicker,
+    preparingSlides,
+    folder,
+    sources,
   ]);
   async function action(label: string, fn: () => Promise<void>) {
     if (busy) return;
@@ -625,8 +724,17 @@ export default function App() {
     await action("正在添加文件夹…", async () => {
       if (await call<boolean>("add_source")) {
         await reload();
-        notify("照片文件夹已添加");
+        notify("所选照片文件夹已添加");
       }
+    });
+  }
+  async function removeFolder(source: Source) {
+    await action("正在移除文件夹…", async () => {
+      await call("remove_source", { id: source.id });
+      setSlideFolders((ids) => ids.filter((id) => id !== source.id));
+      if (section === source.id) setSection("all");
+      await reload();
+      notify(`已移除“${source.name}”，原始文件保留`);
     });
   }
   async function importFiles() {
@@ -772,8 +880,8 @@ export default function App() {
             </div>
             <div className="source-nav">
               {sources.map((s) => (
+                <div className="source-nav-row" key={s.id}>
                 <button
-                  key={s.id}
                   className={`nav-item folder-nav ${section === s.id ? "active" : ""}`}
                   title={displayPath(s.path)}
                   onClick={() => setSection(s.id)}
@@ -782,6 +890,8 @@ export default function App() {
                   <span className="ellipsis">{s.name}</span>
                   <span className="nav-count">{s.count}</span>
                 </button>
+                <button className="icon-button source-remove" aria-label={`移除文件夹 ${s.name}`} title="从图库移除，保留原始文件" disabled={!!busy || !desktop} onClick={() => void removeFolder(s)}><X size={15} /></button>
+                </div>
               ))}
               {!sources.length && (
                 <p className="sidebar-hint">
@@ -820,6 +930,7 @@ export default function App() {
               )}
             </div>
             <div className="toolbar-actions">
+              <button className="secondary" disabled={!sources.length || !!busy} onClick={chooseSlideshowFolders}><Play size={17} />幻灯片</button>
               {section !== "settings" && (
                 <>
                   <button
@@ -963,13 +1074,8 @@ export default function App() {
                     <p className="path">{displayPath(s.path)}</p>
                   </div>
                   <button
-                    onClick={() =>
-                      void action("正在移除来源…", async () => {
-                        await call("remove_source", { id: s.id });
-                        await reload();
-                        notify("已移除图库来源，原始文件保留");
-                      })
-                    }
+                    disabled={!!busy || !desktop}
+                    onClick={() => void removeFolder(s)}
                   >
                     移除
                   </button>
@@ -997,9 +1103,9 @@ export default function App() {
               <p className="muted">在熟悉的文件夹里，找到你的照片。</p>
               <div className="folder-grid">
                 {sources.map((s) => (
+                  <div className="folder-card-wrapper" key={s.id}>
                   <button
                     className="folder-card"
-                    key={s.id}
                     onClick={() => setSection(s.id)}
                   >
                     <FolderOpen size={46} strokeWidth={1.3} />
@@ -1007,6 +1113,8 @@ export default function App() {
                     <span>{s.count} 张照片</span>
                     <small className="ellipsis">{displayPath(s.path)}</small>
                   </button>
+                  <button className="folder-remove" disabled={!!busy || !desktop} aria-label={`移除文件夹 ${s.name}`} title="从图库移除，保留原始文件" onClick={() => void removeFolder(s)}><X size={15} />移除</button>
+                  </div>
                 ))}
                 <button
                   className="folder-card add-folder-card"
@@ -1238,7 +1346,7 @@ export default function App() {
                   <p>{previewError}</p>
                 </div>
               ) : (
-                <LoaderCircle className="spin" size={30} />
+                <div className="viewer-loading-photo" key={view.id}><Thumbnail photo={view} fit="contain" /><LoaderCircle className="spin" size={24} /></div>
               )}
               <button
                 className="viewer-arrow next"
@@ -1300,7 +1408,9 @@ export default function App() {
               </aside>
             )}
           </div>
+          {filmstripVisible && <Filmstrip photos={photos} currentId={view.id} onSelect={selectFromFilmstrip} total={total} loadMore={() => void loadMore()} loading={loading} />}
           <footer className="viewer-footer">
+            <button className="icon-button" aria-label={filmstripVisible ? "隐藏轨道" : "显示轨道"} aria-pressed={filmstripVisible} onClick={() => setFilmstripVisible((visible) => !visible)}><Images size={18} /></button>
             <span className="muted">
               {index >= 0 ? `${index + 1} / ${total}` : ""}
             </span>
@@ -1336,9 +1446,7 @@ export default function App() {
             <button
               className="secondary"
               onClick={() => {
-                slideshowStartId.current = view?.id ?? null;
-                setSlideshow(true);
-                setPlaying(true);
+                chooseSlideshowFolders();
               }}
             >
               <Play size={15} />
@@ -1347,26 +1455,68 @@ export default function App() {
           </footer>
         </div>
       )}
+      {folderPicker && (
+        <div className="dialog-shade">
+          <div className="dialog slideshow-folder-dialog" role="dialog" aria-modal="true" aria-label="选择播放文件夹">
+            <h2>选择播放文件夹</h2>
+            <p className="muted">按所选顺序依次播放；文件夹内使用当前排序。</p>
+            <div className="slideshow-folder-list">
+              {sources.map((source) => (
+                <label key={source.id} title={displayPath(source.path)}>
+                  <input type="checkbox" disabled={preparingSlides} checked={slideFolders.includes(source.id)}
+                    onChange={(e) => setSlideFolders((ids) => e.target.checked ? [...ids, source.id] : ids.filter((id) => id !== source.id))} />
+                  <span>{source.name}</span><span className="muted">{source.count} 张</span>
+                </label>
+              ))}
+            </div>
+            <ol className="slideshow-folder-order">
+              {slideFolders.map((id, index) => (
+                <li key={id}>
+                  <span className="ellipsis" title={displayPath(sources.find((source) => source.id === id)?.path ?? "")}>{sources.find((source) => source.id === id)?.name}</span>
+                  <button disabled={preparingSlides || index === 0} aria-label={`上移第 ${index + 1} 个文件夹`} onClick={() => setSlideFolders((ids) => {
+                    const next = [...ids]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next;
+                  })}>上移</button>
+                  <button disabled={preparingSlides || index === slideFolders.length - 1} aria-label={`下移第 ${index + 1} 个文件夹`} onClick={() => setSlideFolders((ids) => {
+                    const next = [...ids]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next;
+                  })}>下移</button>
+                </li>
+              ))}
+            </ol>
+            <div className="dialog-actions">
+              <button className="secondary" disabled={preparingSlides} onClick={() => setFolderPicker(false)}>取消</button>
+              <button className="primary" disabled={preparingSlides || !slideFolders.length} onClick={() => void startFolderSlideshow()}>{preparingSlides ? "正在准备…" : "开始播放"}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {slideshow && view && (
         <div
           className={`slideshow ${chromeVisible ? "" : "chrome-hidden"}`}
           role="dialog"
           aria-label="幻灯片播放"
           onPointerMove={poke}
+          onPointerEnter={poke}
+          onPointerLeave={() => {
+            if (hideTimer.current) clearTimeout(hideTimer.current);
+            if (!document.querySelector(".slideshow-chrome :focus-visible"))
+              setChromeVisible(false);
+          }}
           onFocusCapture={poke}
         >
           <SlideshowStage
             key={restartToken}
-            url={preview}
+            url={currentPreview}
+            slideKey={slideKey}
             name={view.name}
-            slideIndex={photos.findIndex((p) => p.id === view.id)}
+            slideIndex={playbackPhotos.findIndex((p) => p.id === view.id)}
             playing={playing}
             animations={prefs.animations}
-            transitions={prefs.transitions}
+            transitions={prefs.transitions && !manualNavigation}
             onReady={markSlideReady}
           />
           <div className="slideshow-chrome">
             <div className="slideshow-title">{view.name}</div>
+            {filmstripVisible && <div className="slideshow-filmstrip"><Filmstrip photos={playbackPhotos} currentId={view.id} onSelect={selectFromFilmstrip} total={slidePhotos?.length ?? total} loading={!slidePhotos && loading} loadMore={slidePhotos ? undefined : () => void loadMore()} /></div>}
             <button
               className="slideshow-arrow prev"
               aria-label="上一张"
@@ -1390,7 +1540,9 @@ export default function App() {
                 playing={playing}
                 restartToken={restartToken}
                 onInteraction={poke}
+                controlsVisible={chromeVisible}
               />
+              <button aria-label={filmstripVisible ? "隐藏轨道" : "显示轨道"} aria-pressed={filmstripVisible} onClick={() => setFilmstripVisible((visible) => !visible)}><Images size={18} />轨道</button>
               <button
                 aria-label={playing ? "暂停" : "播放"}
                 onClick={() => setPlaying((p) => !p)}

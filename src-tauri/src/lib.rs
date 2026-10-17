@@ -72,11 +72,16 @@ async fn refresh_library(app: tauri::AppHandle) -> Result<Scan> {
 async fn add_source(app: tauri::AppHandle) -> Result<bool> {
     let lib = app.state::<Library>().inner().clone();
     let changed = blocking(move || {
-        if let Some(path) = rfd::FileDialog::new()
-            .set_title("选择照片文件夹")
-            .pick_folder()
+        if let Some(paths) = rfd::FileDialog::new()
+            .set_title("选择照片文件夹（可多选）")
+            .pick_folders()
         {
-            lib.add_source(&path)?;
+            if paths.is_empty() {
+                return Ok(false);
+            }
+            for path in paths {
+                lib.add_source(&path)?;
+            }
             lib.scan()?;
             Ok(true)
         } else {

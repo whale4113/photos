@@ -10,7 +10,9 @@
     "tauri": "tauri",
     "test": "tsc -b",
     "test:slideshow": "node --test scripts/test-slideshow-effects.mjs",
-    "test:slideshow:browser": "node scripts/test-slideshow-stage.mjs"
+    "test:navigation": "node scripts/test-navigation.mjs",
+    "test:slideshow:browser": "node scripts/test-slideshow-stage.mjs",
+    "test:slideshow:controls": "node scripts/test-slideshow-controls-music.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.4",

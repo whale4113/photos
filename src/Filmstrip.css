@@ -1,0 +1,10 @@
+.filmstrip { display: flex; align-items: center; gap: 14px; width: 100%; min-width: 0; padding: 8px 18px; box-sizing: border-box; background: rgba(20, 20, 20, .94); border-top: 1px solid #ffffff14; }
+.filmstrip-scroll { flex: 1; min-width: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: #ffffff40 transparent; overscroll-behavior-x: contain; }
+.filmstrip-track { position: relative; height: 70px; }
+.filmstrip-item { position: absolute; top: 4px; width: 74px; height: 60px; padding: 3px; border: 2px solid transparent; border-radius: 6px; background: #ffffff0b; cursor: pointer; overflow: hidden; opacity: .7; }
+.filmstrip-item:hover { opacity: 1; background: #ffffff20; }
+.filmstrip-item.active { opacity: 1; border-color: #73baff; background: #73baff20; }
+.filmstrip-item:focus-visible { outline: 2px solid white; outline-offset: 1px; }
+.filmstrip-item img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
+.filmstrip-placeholder { display: grid; place-items: center; width: 100%; height: 100%; color: #bbb; font-size: 24px; }
+.filmstrip-count { color: #ccc; font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }

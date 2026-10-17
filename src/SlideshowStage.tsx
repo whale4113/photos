@@ -21,8 +21,6 @@ export default function SlideshowStage(props: SlideshowStageProps) {
   );
   const active = useRef(new Set<Animation>());
   const motionAnimations = useRef(new Set<Animation>());
-  const ready = useRef(props.onReady);
-  ready.current = props.onReady;
   const startMotion = (picture: Picture, photo: Element) => {
     const frames: Record<Motion, Keyframe[]> = {
       none: [],
@@ -81,7 +79,9 @@ export default function SlideshowStage(props: SlideshowStageProps) {
   }, [props.transitions]);
 
   useEffect(() => {
+    if (!props.url) return;
     let cancelled = false;
+    const onReady = props.onReady;
     const image = new Image();
     image.onload = () => {
       if (cancelled || !root.current) return;
@@ -103,7 +103,7 @@ export default function SlideshowStage(props: SlideshowStageProps) {
       }
       const previous = current.current;
       if (previous?.picture.url === picture.url) {
-        ready.current?.();
+        onReady?.();
         return;
       }
       // Rapid manual navigation discards older transitions, retaining just the displayed slide.
@@ -181,7 +181,7 @@ export default function SlideshowStage(props: SlideshowStageProps) {
         startMotion(picture, photo);
       }
       if (!previous) {
-        ready.current?.();
+        onReady?.();
         return;
       }
       const outgoing = previous.element;
@@ -377,10 +377,10 @@ export default function SlideshowStage(props: SlideshowStageProps) {
       if (cleanupAnimation)
         cleanupAnimation.finished.then(cleanup).catch(() => {});
       else cleanup();
-      ready.current?.();
+      onReady?.();
     };
     image.onerror = () => {
-      if (!cancelled) ready.current?.();
+      // A failed image is not a displayed slide and must not start its timer.
     };
     image.src = props.url;
     return () => {
@@ -388,7 +388,7 @@ export default function SlideshowStage(props: SlideshowStageProps) {
       image.onload = null;
       image.onerror = null;
     };
-  }, [props.url]);
+  }, [props.url, props.slideKey]);
   useEffect(
     () => () => {
       active.current.forEach((animation) => animation.cancel());

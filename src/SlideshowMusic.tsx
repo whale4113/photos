@@ -16,12 +16,14 @@ type Props = {
   playing: boolean;
   restartToken: number;
   onInteraction?: () => void;
+  controlsVisible?: boolean;
 };
 
 export default function SlideshowMusic({
   playing,
   restartToken,
   onInteraction,
+  controlsVisible = true,
 }: Props) {
   const audio = useRef<HTMLAudioElement>(null);
   const upload = useRef<HTMLInputElement>(null);
@@ -31,9 +33,9 @@ export default function SlideshowMusic({
   const [volume, setVolume] = useState(0.5);
   const [muted, setMuted] = useState(false);
   const [phase, setPhase] = useState<"intro" | "main">("intro");
-  const [local, setLocal] = useState<{ name: string; url: string } | null>(
-    null,
-  );
+  const [localTracks, setLocalTracks] = useState<{ name: string; url: string }[]>([]);
+  const [localIndex, setLocalIndex] = useState(0);
+  const local = localTracks[localIndex];
   const [status, setStatus] = useState("");
   const track = tracks.find((item) => item.id === selected) ?? tracks[0];
   const source =
@@ -41,10 +43,13 @@ export default function SlideshowMusic({
 
   useEffect(
     () => () => {
-      if (local) URL.revokeObjectURL(local.url);
+      localTracks.forEach((item) => URL.revokeObjectURL(item.url));
     },
-    [local],
+    [localTracks],
   );
+  useEffect(() => {
+    if (!controlsVisible) setOpen(false);
+  }, [controlsVisible]);
   useEffect(() => {
     if (audio.current) {
       audio.current.volume = volume;
@@ -68,7 +73,8 @@ export default function SlideshowMusic({
   useEffect(() => {
     setPhase("intro");
     if (audio.current) audio.current.currentTime = 0;
-  }, [restartToken, selected, local]);
+    setLocalIndex(0);
+  }, [restartToken, selected, localTracks]);
 
   const retry = () => {
     const player = audio.current;
@@ -92,8 +98,19 @@ export default function SlideshowMusic({
         ref={audio}
         src={enabled ? source : undefined}
         preload="none"
-        loop={!!local || phase === "main"}
-        onEnded={() => setPhase("main")}
+        loop={!local && phase === "main"}
+        onEnded={() => {
+          if (local) setLocalIndex((index) => (index + 1) % localTracks.length);
+          else setPhase("main");
+          // A one-track local queue has no source change to trigger playback.
+          if (localTracks.length === 1 && enabled && playing) {
+            const player = audio.current;
+            if (player) {
+              player.currentTime = 0;
+              void player.play().catch(() => setStatus("音乐播放失败，请重试或选择本地音乐"));
+            }
+          }
+        }}
         onPlaying={() => setStatus("")}
         onError={() => {
           if (enabled) setStatus("音乐加载失败，请重试或选择本地音乐");
@@ -153,7 +170,8 @@ export default function SlideshowMusic({
                       }
                       aria-pressed={!local && selected === item.id}
                       onClick={() => {
-                        setLocal(null);
+                        setLocalTracks([]);
+                        setLocalIndex(0);
                         setSelected(item.id);
                         setPhase("intro");
                         setEnabled(true);
@@ -169,17 +187,19 @@ export default function SlideshowMusic({
             className="slideshow-music-local"
             onClick={() => upload.current?.click()}
           >
-            选择本地音乐{local ? `：${local.name}` : "…"}
+            选择本地音乐{local ? `：${local.name}（${localIndex + 1}/${localTracks.length}）` : "…"}
           </button>
           <input
             ref={upload}
             hidden
             type="file"
+            multiple
             accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac"
             onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) {
-                setLocal({ name: file.name, url: URL.createObjectURL(file) });
+              const files = Array.from(event.target.files ?? []);
+              if (files.length) {
+                setLocalTracks(files.map((file) => ({ name: file.name, url: URL.createObjectURL(file) })));
+                setLocalIndex(0);
                 setEnabled(true);
               }
               event.target.value = "";
