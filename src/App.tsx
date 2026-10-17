@@ -146,9 +146,10 @@ function Grid({
       ref={ref}
       className="gallery-scroll"
       data-testid="gallery-scroll"
-      onScroll={(e) =>
-        setViewport((v) => ({ ...v, scroll: e.currentTarget.scrollTop }))
-      }
+      onScroll={(e) => {
+        const scroll = e.currentTarget.scrollTop;
+        setViewport((v) => ({ ...v, scroll }));
+      }}
     >
       <div className="virtual-grid" style={{ height: rows * row + 32 }}>
         {photos.slice(startRow * columns, endRow * columns).map((p, i) => {

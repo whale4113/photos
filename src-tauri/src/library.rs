@@ -102,11 +102,44 @@ fn supported(path: &Path) -> bool {
     )
 }
 
+#[cfg(windows)]
+fn compare_photo_names(left: &str, right: &str) -> std::cmp::Ordering {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn CompareStringW(
+            locale: u32,
+            flags: u32,
+            left: *const u16,
+            left_len: i32,
+            right: *const u16,
+            right_len: i32,
+        ) -> i32;
+    }
+    let left: Vec<u16> = left.encode_utf16().chain(Some(0)).collect();
+    let right: Vec<u16> = right.encode_utf16().chain(Some(0)).collect();
+    // PhotosCore.dll uses locale 0 and NORM_IGNORECASE | SORT_DIGITSASNUMBERS.
+    let result = unsafe { CompareStringW(0, 9, left.as_ptr(), -1, right.as_ptr(), -1) };
+    match result {
+        1 => std::cmp::Ordering::Less,
+        2 => std::cmp::Ordering::Equal,
+        3 => std::cmp::Ordering::Greater,
+        _ => left.cmp(&right),
+    }
+}
+
+#[cfg(not(windows))]
+fn compare_photo_names(left: &str, right: &str) -> std::cmp::Ordering {
+    // The original Windows linguistic comparator is unavailable on other hosts.
+    left.to_lowercase().cmp(&right.to_lowercase())
+}
+
 impl Library {
     pub fn open(data: &Path, cache: &Path) -> Result<Self> {
         fs::create_dir_all(data).map_err(err)?;
         fs::create_dir_all(cache).map_err(err)?;
         let db = Connection::open(data.join("library.sqlite3")).map_err(err)?;
+        db.create_collation("PHOTOS_NAME", compare_photo_names)
+            .map_err(err)?;
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
    CREATE TABLE IF NOT EXISTS sources(id TEXT PRIMARY KEY,path TEXT NOT NULL UNIQUE,name TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS photos(id TEXT PRIMARY KEY,path TEXT NOT NULL UNIQUE,name TEXT NOT NULL,source_id TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,modified INTEGER NOT NULL,bytes INTEGER NOT NULL,favorite INTEGER NOT NULL DEFAULT 0,seen INTEGER NOT NULL DEFAULT 0);
@@ -283,7 +316,7 @@ impl Library {
             .map_err(err)?;
         let order = match query.sort.as_deref() {
             Some("oldest") => "modified ASC,id ASC",
-            Some("name") => "name COLLATE NOCASE ASC,id ASC",
+            Some("name") => "name COLLATE PHOTOS_NAME ASC,id ASC",
             _ => "modified DESC,id ASC",
         };
         let sql=format!("SELECT id,name,path,source_id,modified,bytes,favorite FROM photos {filter} ORDER BY {order} LIMIT 200 OFFSET ?4");
@@ -562,6 +595,62 @@ pub fn apply_edit(mut img: DynamicImage, edit: &Edit) -> Result<DynamicImage> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    #[test]
+    fn name_sort_matches_photos_linguistic_rules_across_pages() {
+        use std::cmp::Ordering::*;
+        assert_eq!(compare_photo_names("PHOTO.jpg", "photo.jpg"), Equal);
+        assert_eq!(compare_photo_names("photo2.jpg", "photo10.jpg"), Less);
+        assert_eq!(compare_photo_names("é.jpg", "z.jpg"), Less);
+
+        let t = tempfile::tempdir().unwrap();
+        let lib = Library::open(&t.path().join("db"), &t.path().join("cache")).unwrap();
+        {
+            let db = lib.db.lock().unwrap();
+            db.execute("INSERT INTO sources VALUES ('s', 'root', 'root')", [])
+                .unwrap();
+            for i in (0..205).rev() {
+                let id = format!("{i:03}");
+                let name = format!("é{i:03}.jpg");
+                db.execute(
+                    "INSERT INTO photos VALUES (?1,?1,?2,'s',0,0,0,0)",
+                    params![id, name],
+                )
+                .unwrap();
+            }
+            db.execute(
+                "INSERT INTO photos VALUES ('z','z','z.jpg','s',0,0,0,0)",
+                [],
+            )
+            .unwrap();
+        }
+        let first = lib
+            .list(Query {
+                sort: Some("name".into()),
+                ..Default::default()
+            })
+            .unwrap();
+        let next = lib
+            .list(Query {
+                sort: Some("name".into()),
+                offset: Some(200),
+                ..Default::default()
+            })
+            .unwrap();
+        assert_eq!(first.total, 206);
+        assert_eq!(first.items.len(), 200);
+        let names: Vec<_> = first
+            .items
+            .into_iter()
+            .chain(next.items)
+            .map(|p| p.name)
+            .collect();
+        let expected: Vec<_> = (0..205)
+            .map(|i| format!("é{i:03}.jpg"))
+            .chain(Some("z.jpg".into()))
+            .collect();
+        assert_eq!(names, expected);
+    }
     #[test]
     fn catalog_persists_favorites_and_removes_missing_files() {
         let temp = tempfile::tempdir().unwrap();
