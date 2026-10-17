@@ -1,0 +1,1 @@
+{"main":{"identifier":"main","description":"Local bundled photo application; filesystem operations are restricted Rust commands.","local":true,"windows":["main"],"permissions":["core:default","core:window:allow-set-theme"]}}
